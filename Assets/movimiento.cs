@@ -2,144 +2,72 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using TMPro;
 
 public class movimiento : MonoBehaviour
 {
-    public float playerspeed = 10f;
-    public Color newColor = Color.red;
-    public float tiempoDeDetencion = 2f;
-    private bool detenerse = false;
-    public float tiempoDeCambio = 2f;
-    private Color colorOriginal;
-    private Animator animator;
-    public string juego;
+    public float speed = 3.0f;
+    public float alturaSalto = 10.0f;
+    private bool enSuelo = true;
+    private bool juegoPausado = false;
+    private string mensajePausa = "DERROTA!! Presiona la barra espaciadora para reiniciar";
 
-   /* public TMP_Text mensajeTexto;
-    public TMP_Text tiempoTexto;
-    public Canvas mensajeCanvas;
-    public float tiempoTotal = 60f; // Tiempo total del juego en segundos
-    private float tiempoRestante;
-    private bool juegoTerminado = false;
-    private bool mensajeMostrado = false;  // Variable para controlar si el mensaje se ha mostrado
-    public KeyCode reiniciarKey = KeyCode.R;*/
+    private Rigidbody rb;
+    private float initialFixedTimeScale;
 
-
-    
-
-    // Start is called before the first frame update
     void Start()
     {
-        colorOriginal = GetComponent<Renderer>().material.color;
-        animator = GetComponent<Animator>();
-       /* ActualizarTiempo();
-        tiempoRestante = tiempoTotal;*/
+        rb = GetComponent<Rigidbody>();
+        GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeRotation;
+        initialFixedTimeScale = Time.fixedDeltaTime;
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    void OnGUI()
     {
-        if (collision.gameObject.CompareTag("ObjetoColisionador"))
+        if (juegoPausado)
         {
-            GetComponent<Renderer>().material.color = newColor;
-            StartCoroutine(EsperarYReanudarMovimiento());
-            StartCoroutine(RevertirColorDespuesDeTiempo());
-        }
-     }
+            GUI.Label(new Rect(Screen.width / 2 - 150, Screen.height / 2 - 25, 300, 50), mensajePausa);
 
-    private IEnumerator EsperarYReanudarMovimiento()
-    {
-        detenerse = true;
-        yield return new WaitForSeconds(tiempoDeDetencion);
-        detenerse = false;
-    }
-
-    private IEnumerator RevertirColorDespuesDeTiempo()
-    {
-        yield return new WaitForSeconds(tiempoDeCambio);
-        GetComponent<Renderer>().material.color = colorOriginal;
-    }
-
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("Moneda"))
-        {
-            Destroy(other.gameObject);
-        }
-
-        if (other.CompareTag("acabao"))
-        {
-            FinalizarPartida();
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                juegoPausado = false;
+                Time.timeScale = 1.0f;
+                Time.fixedDeltaTime = initialFixedTimeScale;
+            }
         }
     }
 
-    void FinalizarPartida()
-    {
-        detenerse = true;
-        StartCoroutine(CargarEscenaDespuesDeTiempo(1f));
-    }
-
-    private IEnumerator CargarEscenaDespuesDeTiempo(float tiempo)
-    {
-        yield return new WaitForSeconds(tiempo);
-        SceneManager.LoadScene(juego);
-    }
-
-    // Update is called once per frame
     void Update()
     {
-       if (!detenerse)
-       {
-         
+        if (!juegoPausado)
+        {
+            float movimientoHorzizontal = Input.GetAxis("Horizontal");
+            float movimientoVertical = Input.GetAxis("Vertical");
 
-         if (Input.GetKey(KeyCode.W)) 
-         transform.Translate(Vector2.up * playerspeed * Time.deltaTime);
+            Vector3 movimiento = new Vector3(movimientoHorzizontal, 0.0f, movimientoVertical);
+            movimiento = movimiento.normalized * speed * Time.deltaTime;
 
-         if (Input.GetKey(KeyCode.S))
-         transform.Translate(Vector2.down * playerspeed * Time.deltaTime);
-        
-         if (Input.GetKey(KeyCode.A)) 
-         {
-            transform.Translate(Vector2.left * playerspeed * Time.deltaTime);
-            transform.localScale = new Vector3(-2.5f, 2.5f, 1f);
-         }
+            transform.Translate(movimiento);
 
-
-         if (Input.GetKey(KeyCode.D))
-         {
-            transform.Translate(Vector2.right * playerspeed * Time.deltaTime);
-            transform.localScale = new Vector3(2.5f, 2.5f, 1f);
-         }
-
-         animator.SetBool("isRunning", Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D));
-
-       }
-
-       /*  if (!juegoTerminado)
-         {
-            tiempoRestante -= Time.deltaTime;
-            ActualizarTiempo();
-
-            if (tiempoRestante <= 0f)
+            if (Input.GetButtonDown("Jump") && enSuelo)
             {
-                TiempoAgotado();
+                rb.AddForce(Vector3.up * alturaSalto, ForceMode.Impulse);
+                enSuelo = false;
             }
-
-            if (Input.GetKeyDown(KeyCode.R) && juegoTerminado)
-            {
-                ReiniciarJuego();
-            }
-         }
-
+        }
     }
 
-    /*void ReinciarJuego()
+    void OnCollisionEnter(Collision collision)
     {
-        juegoTerminado = false;
-        mensajeCanvas.enabled = false;
-        mensajeMostrado = false;
-        tiempoRestante = tiempoTotal;
-        ActualizarTiempo();
-        Time.timeScale = 1;
-    }*/
-}
+        if (collision.gameObject.CompareTag("Suelo"))
+        {
+            enSuelo = true;
+        }
+
+        if (collision.gameObject.CompareTag("ObjetoColisionable"))
+        {
+            Debug.Log("DEROTA!! Presiona la barra espaciadora para reiniciar");
+            juegoPausado = true;
+        }
+    }
 }
